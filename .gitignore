@@ -1,0 +1,25 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Databases
+smart_farm.db
+smart_farm.db-journal
+
+# App uploads / runtime files
+static/uploads/*
+!static/uploads/.gitkeep
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
