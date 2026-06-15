@@ -1,3 +1,6 @@
 # Netlify Configuration for 100% Client-Side Smart Farm Control Center
 [build]
   publish = "." # Serves index.html from the root folder
+
+[build.environment]
+  PYTHON_VERSION = "3.11"
