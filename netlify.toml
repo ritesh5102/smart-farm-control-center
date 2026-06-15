@@ -3,4 +3,4 @@
   publish = "." # Serves index.html from the root folder
 
 [build.environment]
-  PYTHON_VERSION = "3.11"
+  PYTHON_VERSION = "3.11.9"
