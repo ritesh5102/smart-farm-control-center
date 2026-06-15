@@ -1,0 +1,55 @@
+# Netlify Configuration for Smart Farm Frontend
+[build]
+  publish = "." # Serves index.html from the root folder
+
+# ==============================================================================
+# REDIRECTS / PROXY RULES
+# ------------------------------------------------------------------------------
+# These rules intercept relative API fetches from the browser and transparently 
+# proxy them to your hosted Flask backend on Render.
+# 
+# IMPORTANT: Replace "https://smart-farm-control-center.onrender.com" below 
+# with your actual Render API service URL once you deploy your backend!
+# ==============================================================================
+
+[[redirects]]
+  from = "/sensor-status"
+  to = "https://smart-farm-control-center.onrender.com/sensor-status"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/recommend-crop"
+  to = "https://smart-farm-control-center.onrender.com/recommend-crop"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/predict-yield"
+  to = "https://smart-farm-control-center.onrender.com/predict-yield"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/recommend-fertilizer"
+  to = "https://smart-farm-control-center.onrender.com/recommend-fertilizer"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/predict-disease"
+  to = "https://smart-farm-control-center.onrender.com/predict-disease"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/logs/*"
+  to = "https://smart-farm-control-center.onrender.com/logs/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/static/*"
+  to = "https://smart-farm-control-center.onrender.com/static/:splat"
+  status = 200
+  force = true

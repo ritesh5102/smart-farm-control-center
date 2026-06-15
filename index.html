@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Farm AI/ML Control Center</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(circle at top, #111827 0%, #030712 100%);
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary: #10b981; /* Neon green */
+            --accent: #06b6d4;  /* Neon cyan */
+            --danger: #f43f5e;  /* Crimson */
+            --warning: #fbbf24; /* Amber */
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --glow-primary: 0 0 15px rgba(16, 185, 129, 0.2);
+            --glow-accent: 0 0 15px rgba(6, 182, 212, 0.2);
+            --glow-danger: 0 0 15px rgba(244, 63, 94, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding-bottom: 50px;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 30px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: var(--glow-primary);
+        }
+
+        .logo-title h1 {
+            font-size: 24px;
+            letter-spacing: 0.5px;
+            background: linear-gradient(to right, #ffffff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-title p {
+            font-size: 12px;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+        }
+
+        .status-pill {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 12px var(--primary); }
+            100% { transform: scale(0.95); opacity: 0.5; }
+        }
+
+        /* IoT Sensor Grid */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .sensor-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sensor-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent);
+        }
+
+        .sensor-card.anomaly::before {
+            background: var(--danger);
+        }
+
+        .sensor-card.anomaly {
+            box-shadow: var(--glow-danger);
+            border-color: rgba(244, 63, 94, 0.2);
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        .sensor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .sensor-value {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        .sensor-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Control Panel Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-title i {
+            color: var(--primary);
+            font-size: 20px;
+        }
+
+        .card-title h2 {
+            font-size: 20px;
+            color: #ffffff;
+        }
+
+        /* Forms Styling */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        input, select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 12px 15px;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: var(--glow-accent);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            padding: 0;
+            accent-color: var(--primary);
+        }
+
+        .slider-value {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            color: var(--accent);
+            min-width: 50px;
+            text-align: right;
+        }
+
+        button.btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border: none;
+            border-radius: 10px;
+            padding: 14px;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: var(--glow-primary);
+        }
+
+        button.btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Image Drag & Drop */
+        .dropzone {
+            border: 2px dashed var(--glass-border);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.01);
+            margin-bottom: 20px;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--accent);
+            background: rgba(6, 182, 212, 0.05);
+        }
+
+        .dropzone i {
+            font-size: 36px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .dropzone p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .dropzone-sub {
+            font-size: 11px !important;
+            color: #6b7280 !important;
+            margin-top: 5px;
+        }
+
+        #image-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            border: 1px solid var(--glass-border);
+        }
+
+        /* Prediction Results Box */
+        .results-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed var(--glass-border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+            display: none;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .results-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .podium-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .podium-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+        }
+
+        .podium-rank {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .rank-badge {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .rank-1 { background: #fbbf24; color: #1e1b4b; }
+        .rank-2 { background: #cbd5e1; color: #0f172a; }
+        .rank-3 { background: #b45309; color: #ffffff; }
+
+        .crop-name {
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .crop-prob-bar {
+            width: 120px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-left: 15px;
+        }
+
+        .crop-prob-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        .disease-badge {
+            display: inline-block;
+            background: rgba(244, 63, 94, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .disease-badge.healthy {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--primary);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .yield-highlight {
+            font-size: 32px;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+        }
+
+        .yield-meta {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        /* Tab Layout */
+        .tabs-header {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 1px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 12px 20px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 15px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            color: #ffffff;
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        /* Visualization Gallery */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .gallery-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .gallery-card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .gallery-card img {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 10px;
+            background: #ffffff; /* Contrast for plots */
+        }
+
+        /* SQLite Logs Tables */
+        .logs-section {
+            margin-top: 40px;
+        }
+
+        .logs-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .log-tab-btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .log-tab-btn.active {
+            background: var(--accent);
+            color: #111827;
+            font-weight: 600;
+            border-color: var(--accent);
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: var(--card-bg);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px 15px;
+            color: #ffffff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        td {
+            padding: 12px 15px;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        tr:hover td {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.01);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <header>
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-leaf"></i>
+                </div>
+                <div class="logo-title">
+                    <h1>Smart Farm AI</h1>
+                    <p>Optimization & Analysis Dashboard</p>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 15px;">
+                <button onclick="readSensors()" class="btn" style="width: auto; padding: 8px 16px; font-size: 13px; background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: none;">
+                    <i class="fa-solid fa-arrows-rotate"></i> Poll Sensor
+                </button>
+                <div class="status-pill">
+                    <div id="status-dot" class="status-dot"></div>
+                    <span id="status-text">System Live</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Real-Time IoT Sensors Readings -->
+        <div class="sensor-grid">
+            <div class="sensor-card" id="card-temp">
+                <div class="sensor-header">
+                    <span>Temperature</span>
+                    <i class="fa-solid fa-temperature-half" style="color: var(--warning);"></i>
+                </div>
+                <div class="sensor-value" id="val-temp">--°C</div>
+                <div class="sensor-label">IoT Sensor 01</div>
+            </div>
+            
+            <div class="sensor-card" id="card-humidity">
+                <div class="sensor-header">
+                    <span>Humidity</span>
+                    <i class="fa-solid fa-droplet" style="color: var(--accent);"></i>
+                </div>
+                <div class="sensor-value" id="val-humidity">--%</div>
+                <div class="sensor-label">IoT Sensor 02</div>
+            </div>
+            
+            <div class="sensor-card" id="card-moisture">
+                <div class="sensor-header">
+                    <span>Soil Moisture</span>
+                    <i class="fa-solid fa-seedling" style="color: var(--primary);"></i>
+                </div>
+                <div class="sensor-value" id="val-moisture">--%</div>
+                <div class="sensor-label">IoT Sensor 03</div>
+            </div>
+            
+            <div class="sensor-card" id="card-ph">
+                <div class="sensor-header">
+                    <span>Soil pH</span>
+                    <i class="fa-solid fa-gauge-simple-high" style="color: #a855f7;"></i>
+                </div>
+                <div class="sensor-value" id="val-ph">--</div>
+                <div class="sensor-label">IoT Sensor 04</div>
+            </div>
+            
+            <div class="sensor-card" id="card-rainfall">
+                <div class="sensor-header">
+                    <span>Rainfall</span>
+                    <i class="fa-solid fa-cloud-showers-water" style="color: #3b82f6;"></i>
+                </div>
+                <div class="sensor-value" id="val-rainfall">--mm</div>
+                <div class="sensor-label">IoT Sensor 05</div>
+            </div>
+        </div>
+
+        <!-- Dashboard Navigation Tabs -->
+        <div class="tabs-header">
+            <button class="tab-btn active" onclick="switchTab('analytics')">ML Control Center</button>
+            <button class="tab-btn" onclick="switchTab('charts')">Visualizations & Diagnostics</button>
+        </div>
+
+        <!-- Analytics Control Center View -->
+        <div id="tab-analytics" class="tab-content">
+            <div class="main-grid">
+                
+                <!-- Crop Recommendation Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-circle-nodes"></i>
+                            <h2>Crop Recommender</h2>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted); background: rgba(16, 185, 129, 0.1); padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">RF Classifier</span>
+                    </div>
+                    
+                    <form id="crop-recommendation-form" onsubmit="getRecommendation(event)">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="n-nutrient">Nitrogen (N) - mg/kg</label>
+                                <input type="number" id="n-nutrient" required min="0" max="200" value="50">
+                            </div>
+                            <div class="form-group">
+                                <label for="p-nutrient">Phosphorus (P) - mg/kg</label>
+                                <input type="number" id="p-nutrient" required min="0" max="200" value="50">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="k-nutrient">Potassium (K) - mg/kg</label>
+                                <input type="number" id="k-nutrient" required min="0" max="300" value="50">
+                            </div>
+                            <div class="form-group">
+                                <label>Soil pH</label>
+                                <div class="slider-container">
+                                    <input type="range" id="ph-val" min="3.5" max="9.0" step="0.1" value="6.5" oninput="document.getElementById('ph-lbl').innerText = this.value">
+                                    <span class="slider-value" id="ph-lbl">6.5</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Temperature (°C)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="temp-val" min="10" max="45" step="1" value="25" oninput="document.getElementById('temp-lbl').innerText = this.value + '°C'">
+                                    <span class="slider-value" id="temp-lbl">25°C</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Humidity (%)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="humidity-val" min="15" max="100" step="1" value="70" oninput="document.getElementById('humidity-lbl').innerText = this.value + '%'">
+                                    <span class="slider-value" id="humidity-lbl">70%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Annual Rainfall (mm)</label>
+                            <div class="slider-container">
+                                    <input type="range" id="rainfall-val" min="10" max="350" step="5" value="150" oninput="document.getElementById('rainfall-lbl').innerText = this.value + ' mm'">
+                                    <span class="slider-value" id="rainfall-lbl">150 mm</span>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn"><i class="fa-solid fa-magnifying-glass-chart"></i> Get Crop Recommendation</button>
+                    </form>
+                    
+                    <div class="results-box" id="rec-results">
+                        <div class="results-title">
+                            <i class="fa-solid fa-trophy"></i> Top Crop Recommendations
+                        </div>
+                        <div class="podium-container" id="rec-podium">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Crop Disease Detection Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-bug"></i>
+                            <h2>Disease Diagnosis</h2>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted); background: rgba(6, 182, 212, 0.1); padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.2);">CNN Classifier</span>
+                    </div>
+                    
+                    <form id="disease-form" onsubmit="detectDisease(event)">
+                        <div class="dropzone" id="dropzone" onclick="document.getElementById('leaf-file').click()">
+                            <i class="fa-regular fa-image"></i>
+                            <p>Drag & drop plant leaf image here, or <b>browse</b></p>
+                            <p class="dropzone-sub">Supports: JPG, JPEG, PNG (Auto-preprocessed by OpenCV)</p>
+                            <input type="file" id="leaf-file" style="display: none;" accept="image/*" onchange="previewImage(this)">
+                            <img id="image-preview" src="#" alt="Leaf Preview">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px; font-size: 12px; color: var(--text-muted); text-align: center;">
+                            Test Leaf Assets: 
+                            <a href="/static/test_leaves/healthy_leaf.jpg" download style="color: var(--primary); margin: 0 5px; text-decoration: none; font-weight: 600;"><i class="fa-solid fa-download"></i> Healthy</a> | 
+                            <a href="/static/test_leaves/early_blight_leaf.jpg" download style="color: var(--warning); margin: 0 5px; text-decoration: none; font-weight: 600;"><i class="fa-solid fa-download"></i> Early Blight</a> | 
+                            <a href="/static/test_leaves/late_blight_leaf.jpg" download style="color: var(--danger); margin: 0 5px; text-decoration: none; font-weight: 600;"><i class="fa-solid fa-download"></i> Late Blight</a> | 
+                            <a href="/static/test_leaves/leaf_mold_leaf.jpg" download style="color: #a855f7; margin: 0 5px; text-decoration: none; font-weight: 600;"><i class="fa-solid fa-download"></i> Leaf Mold</a>
+                        </div>
+                        
+                        <button type="submit" class="btn" id="diagnose-btn"><i class="fa-solid fa-microscope"></i> Diagnose Plant Health</button>
+                    </form>
+                    
+                    <div class="results-box" id="disease-results">
+                        <div class="results-title">
+                            <i class="fa-solid fa-clipboard-check"></i> Diagnostic Diagnosis Report
+                        </div>
+                        <div id="disease-report">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Crop Yield Prediction Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <h2>Yield Optimization</h2>
+                        </div>
+                    </div>
+                    
+                    <form id="yield-form" onsubmit="predictYield(event)">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="yield-crop">Crop Type</label>
+                                <select id="yield-crop" required>
+                                    <option value="Rice">Rice</option>
+                                    <option value="Maize">Maize</option>
+                                    <option value="Wheat">Wheat</option>
+                                    <option value="Sugarcane">Sugarcane</option>
+                                    <option value="Cotton">Cotton</option>
+                                    <option value="Jute">Jute</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="yield-season">Season</label>
+                                <select id="yield-season" required>
+                                    <option value="Kharif">Kharif</option>
+                                    <option value="Rabi">Rabi</option>
+                                    <option value="Summer">Summer</option>
+                                    <option value="Whole Year">Whole Year</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="yield-area">Area (Hectares)</label>
+                                <input type="number" step="0.1" id="yield-area" required min="0.1" max="1000" value="10.0">
+                            </div>
+                            <div class="form-group">
+                                <label for="yield-rainfall">Rainfall (mm)</label>
+                                <input type="number" id="yield-rainfall" required min="0" max="3000" value="1200">
+                            </div>
+                            <div class="form-group">
+                                <label for="yield-fertilizer">Fertilizer (kg)</label>
+                                <input type="number" id="yield-fertilizer" required min="0" max="50000" value="1000">
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn"><i class="fa-solid fa-calculator"></i> Run Yield Optimization</button>
+                    </form>
+                    
+                    <div class="results-box" id="yield-results">
+                        <div class="results-title">
+                            <i class="fa-solid fa-wheat-awn"></i> Yield Estimates
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <span class="yield-label">Predicted Yield</span>
+                                <div class="yield-highlight" id="lbl-yield-rate" style="font-size: 24px;">-- tonnes/ha</div>
+                            </div>
+                            <div>
+                                <span class="yield-label">Gross Est. Production</span>
+                                <div class="yield-highlight" id="lbl-total-prod" style="color: var(--primary); font-size: 24px;">-- tonnes</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fertilizer Recommender Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-flask-vial"></i>
+                            <h2>Fertilizer Suggestion</h2>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted); background: rgba(6, 182, 212, 0.1); padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.2);">RF Classifier</span>
+                    </div>
+                    
+                    <form id="fertilizer-form" onsubmit="getFertilizer(event)">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fert-n">Nitrogen (N) - mg/kg</label>
+                                <input type="number" id="fert-n" required min="0" max="150" value="40">
+                            </div>
+                            <div class="form-group">
+                                <label for="fert-p">Phosphorus (P) - mg/kg</label>
+                                <input type="number" id="fert-p" required min="0" max="150" value="40">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fert-k">Potassium (K) - mg/kg</label>
+                                <input type="number" id="fert-k" required min="0" max="150" value="40">
+                            </div>
+                            <div class="form-group">
+                                <label for="fert-crop">Target Crop Type</label>
+                                <select id="fert-crop" required>
+                                    <option value="Rice">Rice</option>
+                                    <option value="Maize">Maize</option>
+                                    <option value="Wheat">Wheat</option>
+                                    <option value="Sugarcane">Sugarcane</option>
+                                    <option value="Cotton">Cotton</option>
+                                    <option value="Jute">Jute</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Soil Moisture (%)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="fert-moisture" min="10" max="90" step="1" value="50" oninput="document.getElementById('fert-moist-lbl').innerText = this.value + '%'">
+                                    <span class="slider-value" id="fert-moist-lbl">50%</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Temperature (°C)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="fert-temp" min="10" max="45" step="1" value="25" oninput="document.getElementById('fert-temp-lbl').innerText = this.value + '°C'">
+                                    <span class="slider-value" id="fert-temp-lbl">25°C</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Soil pH</label>
+                            <div class="slider-container">
+                                <input type="range" id="fert-ph" min="3.5" max="9.0" step="0.1" value="6.5" oninput="document.getElementById('fert-ph-lbl').innerText = this.value">
+                                <span class="slider-value" id="fert-ph-lbl">6.5</span>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn"><i class="fa-solid fa-vial-circle-check"></i> Suggest Fertilizer</button>
+                    </form>
+                    
+                    <div class="results-box" id="fert-results">
+                        <div class="results-title">
+                            <i class="fa-solid fa-hand-holding-hand"></i> Recommended Application
+                        </div>
+                        <div style="text-align: center; padding: 5px;">
+                            <div class="disease-badge healthy" id="lbl-fert-rec" style="font-size: 15px; padding: 6px 18px; text-transform: uppercase;">--</div>
+                            <div class="yield-meta" style="margin-top: 5px;">Soil treatment recommended by ML model.</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- SQL Database Logs Explorer -->
+            <div class="card logs-section">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fa-solid fa-database"></i>
+                        <h2>SQL Database Predictions Log (SQLite smart_farm.db)</h2>
+                    </div>
+                </div>
+                
+                <div class="logs-tabs">
+                    <button class="log-tab-btn active" onclick="loadDbLogs('sensor_readings', this)">sensor_readings</button>
+                    <button class="log-tab-btn" onclick="loadDbLogs('crop_predictions', this)">crop_predictions</button>
+                    <button class="log-tab-btn" onclick="loadDbLogs('fertilizer_predictions', this)">fertilizer_predictions</button>
+                    <button class="log-tab-btn" onclick="loadDbLogs('disease_detections', this)">disease_detections</button>
+                    <button class="log-tab-btn" onclick="loadDbLogs('yield_predictions', this)">yield_predictions</button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table id="logs-table">
+                        <thead>
+                            <tr id="logs-thead">
+                                <!-- Headers populated dynamically -->
+                            </tr>
+                        </thead>
+                        <tbody id="logs-tbody">
+                            <!-- Rows populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts / Diagnostics Tab View -->
+        <div id="tab-charts" class="tab-content" style="display: none;">
+            <div class="gallery-grid" style="margin-bottom: 30px;">
+                <div class="gallery-card">
+                    <h3>Soil Nutrients by Recommended Crop</h3>
+                    <p style="font-size:12px; color:var(--text-muted)">Statistical boxplot of N, P, K ranges per crop</p>
+                    <img src="/static/crop_soil_distribution.png" alt="Crop Soil Nutrient Distribution" onerror="this.src='https://via.placeholder.com/600x400/222/555?text=Soil+Nutrient+Distribution+Plot+Missing'">
+                </div>
+                
+                <div class="gallery-card">
+                    <h3>Disease Distribution across Plants</h3>
+                    <p style="font-size:12px; color:var(--text-muted)">Frequencies of disease types by plant species</p>
+                    <img src="/static/disease_distribution.png" alt="Disease Distribution Across Plants" onerror="this.src='https://via.placeholder.com/600x400/222/555?text=Disease+Distribution+Plot+Missing'">
+                </div>
+                
+                <div class="gallery-card">
+                    <h3>XGBoost Yield Model Fit</h3>
+                    <p style="font-size:12px; color:var(--text-muted)">Scatter plot of Predicted vs Actual Yield metrics</p>
+                    <img src="/static/yield_prediction_vs_actual.png" alt="Yield Prediction vs Actual" onerror="this.src='https://via.placeholder.com/600x400/222/555?text=Yield+Fit+Plot+Missing'">
+                </div>
+                
+                <div class="gallery-card">
+                    <h3>IoT Telemetry Anomalies Chart</h3>
+                    <p style="font-size:12px; color:var(--text-muted)">Time-series plot showcasing outlier points (Isolation Forest)</p>
+                    <img src="/static/sensor_data_over_time.png" alt="Sensor Telemetry Anomaly Chart" onerror="this.src='https://via.placeholder.com/600x400/222/555?text=Sensor+Anomaly+Chart+Missing'">
+                </div>
+            </div>
+
+            <!-- Interactive Charts Section -->
+            <div class="card" style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 20px; padding: 25px;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fa-solid fa-chart-pie" style="color: var(--accent);"></i>
+                        <h2>Real-Time Dynamic Analysis Dashboard (Chart.js)</h2>
+                    </div>
+                </div>
+                
+                <div class="gallery-grid">
+                    <div class="gallery-card" style="background: rgba(255,255,255,0.01);">
+                        <h3>Real-Time IoT Sensor Telemetry</h3>
+                        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 15px;">Scrolling line chart updating dynamically as sensors poll</p>
+                        <div style="height: 250px; position: relative;">
+                            <canvas id="realtimeSensorChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="gallery-card" style="background: rgba(255,255,255,0.01);">
+                        <h3>Average Soil Nutrients from Predictions Logs</h3>
+                        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 15px;">Average soil parameters (N, P, K) registered in crop_predictions logs</p>
+                        <div style="height: 250px; position: relative;">
+                            <canvas id="logsNutrientChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scripting for interactions -->
+    <script>
+        // Tab switching logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+            
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabId).style.display = 'block';
+        }
+
+        // Image Drag & Drop Preview
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('leaf-file');
+        const previewImg = document.getElementById('image-preview');
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+            }, false);
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+            previewImage(fileInput);
+        });
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    previewImg.style.display = 'block';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Real-Time IoT Sensors
+        function readSensors() {
+            fetch('/sensor-status')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('val-temp').innerText = data.temperature.toFixed(1) + "°C";
+                        document.getElementById('val-humidity').innerText = data.humidity.toFixed(1) + "%";
+                        document.getElementById('val-moisture').innerText = data.soil_moisture.toFixed(1) + "%";
+                        document.getElementById('val-ph').innerText = data.ph.toFixed(2);
+                        document.getElementById('val-rainfall').innerText = data.rainfall.toFixed(1) + "mm";
+                        
+                        // Highlight anomalies
+                        const cards = ['temp', 'humidity', 'moisture', 'ph', 'rainfall'];
+                        cards.forEach(card => {
+                            const elem = document.getElementById(`card-${card}`);
+                            if (data.is_anomaly) {
+                                elem.classList.add('anomaly');
+                            } else {
+                                elem.classList.remove('anomaly');
+                            }
+                        });
+                        
+                        const statusDot = document.getElementById('status-dot');
+                        const statusText = document.getElementById('status-text');
+                        if (data.is_anomaly) {
+                            statusDot.style.background = 'var(--danger)';
+                            statusDot.style.boxShadow = '0 0 12px var(--danger)';
+                            statusText.innerText = "Anomaly Alert!";
+                            statusText.style.color = "var(--danger)";
+                        } else {
+                            statusDot.style.background = 'var(--primary)';
+                            statusDot.style.boxShadow = '0 0 12px var(--primary)';
+                            statusText.innerText = "System Live";
+                            statusText.style.color = "var(--text-main)";
+                        }
+                        
+                        // Refresh log table if currently on sensor tab
+                        const activeLogTab = document.querySelector('.log-tab-btn.active');
+                        if (activeLogTab && activeLogTab.innerText === 'sensor_readings') {
+                            activeLogTab.click();
+                        }
+                    }
+                })
+                .catch(err => console.error("Error reading sensors:", err));
+        }
+
+        // Crop Recommendation
+        function getRecommendation(e) {
+            e.preventDefault();
+            const N = document.getElementById('n-nutrient').value;
+            const P = document.getElementById('p-nutrient').value;
+            const K = document.getElementById('k-nutrient').value;
+            const temp = document.getElementById('temp-val').value;
+            const hum = document.getElementById('humidity-val').value;
+            const ph = document.getElementById('ph-val').value;
+            const rain = document.getElementById('rainfall-val').value;
+
+            fetch('/recommend-crop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ N, P, K, temperature: temp, humidity: hum, ph, rainfall: rain })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const resultsBox = document.getElementById('rec-results');
+                const podium = document.getElementById('rec-podium');
+                podium.innerHTML = '';
+                
+                if (data.success && data.recommendations) {
+                    resultsBox.style.display = 'block';
+                    data.recommendations.forEach((item, index) => {
+                        const scorePct = (item.probability * 100).toFixed(1) + "%";
+                        podium.innerHTML += `
+                            <div class="podium-item">
+                                <div class="podium-rank">
+                                    <div class="rank-badge rank-${index+1}">${index+1}</div>
+                                    <span class="crop-name">${item.crop}</span>
+                                </div>
+                                <div style="display: flex; align-items: center;">
+                                    <span style="font-weight: 700; color: var(--accent);">${scorePct}</span>
+                                    <div class="crop-prob-bar">
+                                        <div class="crop-prob-fill" style="width: ${item.probability*100}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Refresh database logs if active
+                    const activeLogTab = document.querySelector('.log-tab-btn.active');
+                    if (activeLogTab && activeLogTab.innerText === 'crop_predictions') {
+                        activeLogTab.click();
+                    }
+                } else {
+                    alert("Recommendation failed: " + (data.error || "Unknown error"));
+                }
+            })
+            .catch(err => alert("Error communicating with recommendation engine: " + err));
+        }
+
+        // Disease Detection
+        function detectDisease(e) {
+            e.preventDefault();
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Please select or drop a leaf image first.");
+                return;
+            }
+
+            const diagnoseBtn = document.getElementById('diagnose-btn');
+            diagnoseBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+            diagnoseBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/predict-disease', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                diagnoseBtn.innerHTML = '<i class="fa-solid fa-microscope"></i> Diagnose Plant Health';
+                diagnoseBtn.disabled = false;
+
+                const resultsBox = document.getElementById('disease-results');
+                const report = document.getElementById('disease-report');
+                
+                if (data.success) {
+                    resultsBox.style.display = 'block';
+                    const isHealthy = data.disease.toLowerCase() === 'healthy';
+                    const confidencePct = (data.confidence * 100).toFixed(1) + "%";
+                    
+                    let recommendations = "";
+                    if (isHealthy) {
+                        recommendations = "Leaf appears healthy. Continue normal irrigation and regular nutrient schedules.";
+                    } else if (data.disease.includes('Blight')) {
+                        recommendations = "Fungicidal treatment recommended. Reduce overhead irrigation to avoid spreading spores on foliage.";
+                    } else if (data.disease.includes('Mold')) {
+                        recommendations = "Improve greenhouse ventilation, reduce relative humidity levels below 85%, and apply systemic copper sprays.";
+                    }
+                    
+                    report.innerHTML = `
+                        <div class="disease-badge ${isHealthy ? 'healthy' : ''}">${data.disease.toUpperCase()}</div>
+                        <div style="margin-bottom: 15px;">
+                            <span style="color: var(--text-muted);">Confidence Score:</span>
+                            <span style="font-weight: 700; color: #ffffff; margin-left: 8px;">${confidencePct}</span>
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-muted); line-height: 1.5; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                            <b style="color: #ffffff; display: block; margin-bottom: 5px;">Suggested Action Plan:</b>
+                            ${recommendations}
+                        </div>
+                    `;
+                    
+                    // Refresh database logs if active
+                    const activeLogTab = document.querySelector('.log-tab-btn.active');
+                    if (activeLogTab && activeLogTab.innerText === 'disease_detections') {
+                        activeLogTab.click();
+                    }
+                } else {
+                    alert("Diagnosis failed: " + (data.error || "Unknown error"));
+                }
+            })
+            .catch(err => {
+                diagnoseBtn.innerHTML = '<i class="fa-solid fa-microscope"></i> Diagnose Plant Health';
+                diagnoseBtn.disabled = false;
+                alert("Error during diagnosis: " + err);
+            });
+        }
+
+        // Crop Yield prediction
+        function predictYield(e) {
+            e.preventDefault();
+            const crop = document.getElementById('yield-crop').value;
+            const season = document.getElementById('yield-season').value;
+            const area = document.getElementById('yield-area').value;
+            const rainfall = document.getElementById('yield-rainfall').value;
+            const fertilizer = document.getElementById('yield-fertilizer').value;
+
+            fetch('/predict-yield', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ crop, season, area, rainfall, fertilizer })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const resultsBox = document.getElementById('yield-results');
+                if (data.success) {
+                    resultsBox.style.display = 'block';
+                    document.getElementById('lbl-yield-rate').innerText = data.predicted_yield.toFixed(2) + " t/ha";
+                    document.getElementById('lbl-total-prod').innerText = data.total_production.toFixed(2) + " tonnes";
+                    
+                    // Refresh database logs if active
+                    const activeLogTab = document.querySelector('.log-tab-btn.active');
+                    if (activeLogTab && activeLogTab.innerText === 'yield_predictions') {
+                        activeLogTab.click();
+                    }
+                } else {
+                    alert("Yield optimization failed: " + (data.error || "Unknown error"));
+                }
+            })
+            .catch(err => alert("Error communicating with yield prediction engine: " + err));
+        }
+
+        // SQL Logs fetching
+        function loadDbLogs(tableName, tabElement) {
+            if (tabElement) {
+                document.querySelectorAll('.log-tab-btn').forEach(btn => btn.classList.remove('active'));
+                tabElement.classList.add('active');
+            }
+            
+            fetch(`/logs/${tableName}`)
+                .then(res => res.json())
+                .then(data => {
+                    const thead = document.getElementById('logs-thead');
+                    const tbody = document.getElementById('logs-tbody');
+                    thead.innerHTML = '';
+                    tbody.innerHTML = '';
+                    
+                    if (data.success && data.logs.length > 0) {
+                        // Dynamically resolve columns from first record keys
+                        const columns = Object.keys(data.logs[0]);
+                        columns.forEach(col => {
+                            thead.innerHTML += `<th>${col}</th>`;
+                        });
+                        
+                        data.logs.forEach(row => {
+                            let trHtml = '<tr>';
+                            columns.forEach(col => {
+                                let val = row[col];
+                                if (typeof val === 'number') {
+                                    // format floats
+                                    val = val % 1 === 0 ? val : val.toFixed(2);
+                                }
+                                if (col === 'is_anomaly') {
+                                    val = val === 1 ? '<span style="color: var(--danger); font-weight:700;">YES</span>' : '<span style="color: var(--primary);">NO</span>';
+                                }
+                                trHtml += `<td>${val}</td>`;
+                            });
+                            trHtml += '</tr>';
+                            tbody.innerHTML += trHtml;
+                        });
+                    } else {
+                        thead.innerHTML = '<th>Status</th>';
+                        tbody.innerHTML = '<tr><td>No records logged in this table yet. Triggers must occur to record predictions.</td></tr>';
+                    }
+                })
+                .catch(err => console.error("Error loading DB logs:", err));
+        }
+
+        // Fertilizer Recommendation Form
+        function getFertilizer(e) {
+            e.preventDefault();
+            const N = document.getElementById('fert-n').value;
+            const P = document.getElementById('fert-p').value;
+            const K = document.getElementById('fert-k').value;
+            const moisture = document.getElementById('fert-moisture').value;
+            const temp = document.getElementById('fert-temp').value;
+            const ph = document.getElementById('fert-ph').value;
+            const crop = document.getElementById('fert-crop').value;
+
+            fetch('/recommend-fertilizer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ N, P, K, moisture, temperature: temp, ph, crop })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const resultsBox = document.getElementById('fert-results');
+                const fertLbl = document.getElementById('lbl-fert-rec');
+                if (data.success) {
+                    resultsBox.style.display = 'block';
+                    fertLbl.innerText = data.fertilizer;
+                    
+                    // Highlight fertilizer name
+                    if (data.fertilizer.includes('Lime') || data.fertilizer.includes('Gypsum')) {
+                        fertLbl.style.color = '#a855f7';
+                        fertLbl.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+                    } else {
+                        fertLbl.style.color = 'var(--primary)';
+                        fertLbl.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                    }
+                    
+                    // Refresh database logs if active
+                    const activeLogTab = document.querySelector('.log-tab-btn.active');
+                    if (activeLogTab && activeLogTab.innerText === 'fertilizer_predictions') {
+                        activeLogTab.click();
+                    }
+                } else {
+                    alert("Fertilizer recommendation failed: " + (data.error || "Unknown error"));
+                }
+            })
+            .catch(err => alert("Error communicating with fertilizer engine: " + err));
+        }
+
+        // Chart.js Variables
+        let sensorChart = null;
+        let nutrientChart = null;
+        const maxSensorHistory = 15;
+        const sensorTimeLabels = [];
+        const tempHistory = [];
+        const moistureHistory = [];
+        const rainfallHistory = [];
+
+        function initChartJs() {
+            // 1. Real-Time Telemetry Line Chart
+            const sensorCtx = document.getElementById('realtimeSensorChart').getContext('2d');
+            sensorChart = new Chart(sensorCtx, {
+                type: 'line',
+                data: {
+                    labels: sensorTimeLabels,
+                    datasets: [
+                        {
+                            label: 'Temp (°C)',
+                            data: tempHistory,
+                            borderColor: '#fbbf24',
+                            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                            borderWidth: 2,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Moisture (%)',
+                            data: moistureHistory,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Rainfall (mm)',
+                            data: rainfallHistory,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            yAxisID: 'y-rain'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#9ca3af' }
+                        },
+                        'y-rain': {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#9ca3af' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#9ca3af' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#f3f4f6' } }
+                    }
+                }
+            });
+
+            // 2. Average Soil Nutrient Bar Chart
+            const nutrientCtx = document.getElementById('logsNutrientChart').getContext('2d');
+            nutrientChart = new Chart(nutrientCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Nitrogen (N)', 'Phosphorus (P)', 'Potassium (K)'],
+                    datasets: [{
+                        label: 'Average Nutrient Levels (mg/kg)',
+                        data: [0, 0, 0],
+                        backgroundColor: [
+                            'rgba(244, 63, 94, 0.6)',
+                            'rgba(6, 182, 212, 0.6)',
+                            'rgba(16, 185, 129, 0.6)'
+                        ],
+                        borderColor: [
+                            '#f43f5e',
+                            '#06b6d4',
+                            '#10b981'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#9ca3af' }
+                        },
+                        x: {
+                            ticks: { color: '#9ca3af' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#f3f4f6' } }
+                    }
+                }
+            });
+        }
+
+        function updateSensorChart(temp, moisture, rainfall) {
+            if (!sensorChart) return;
+            
+            const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            sensorTimeLabels.push(now);
+            tempHistory.push(temp);
+            moistureHistory.push(moisture);
+            rainfallHistory.push(rainfall);
+            
+            if (sensorTimeLabels.length > maxSensorHistory) {
+                sensorTimeLabels.shift();
+                tempHistory.shift();
+                moistureHistory.shift();
+                rainfallHistory.shift();
+            }
+            
+            sensorChart.update();
+        }
+
+        function fetchAndAverageNutrients() {
+            fetch('/logs/crop_predictions')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.logs.length > 0) {
+                        let sumN = 0, sumP = 0, sumK = 0;
+                        data.logs.forEach(log => {
+                            sumN += log.N;
+                            sumP += log.P;
+                            sumK += log.K;
+                        });
+                        const avgN = sumN / data.logs.length;
+                        const avgP = sumP / data.logs.length;
+                        const avgK = sumK / data.logs.length;
+                        
+                        if (nutrientChart) {
+                            nutrientChart.data.datasets[0].data = [avgN, avgP, avgK];
+                            nutrientChart.update();
+                        }
+                    }
+                })
+                .catch(err => console.error("Error drawing dynamic bar chart:", err));
+        }
+
+        // Hook updateSensorChart inside readSensors
+        const originalReadSensors = readSensors;
+        readSensors = function() {
+            fetch('/sensor-status')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update dynamic Chart.js
+                        updateSensorChart(data.temperature, data.soil_moisture, data.rainfall);
+                    }
+                });
+            originalReadSensors();
+            fetchAndAverageNutrients();
+        }
+
+        // Initialization
+        window.onload = function() {
+            initChartJs();
+            
+            // Read initial sensors
+            readSensors();
+            // Load logs initially
+            loadDbLogs('sensor_readings');
+            
+            // Periodically check sensors (every 5 seconds)
+            setInterval(readSensors, 5000);
+        }
+    </script>
+</body>
+</html>

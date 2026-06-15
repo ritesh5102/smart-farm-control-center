@@ -8,10 +8,12 @@ import sqlite3
 import datetime
 from flask import Flask, request, jsonify, render_template, send_from_directory
 import tensorflow as tf
+from flask_cors import CORS
 
 import database
 
 app = Flask(__name__)
+CORS(app)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
