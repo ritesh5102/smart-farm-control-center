@@ -10,6 +10,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- ONNX Runtime Web -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <!-- Compiled client-side ML models -->
+    <script src="/static/models.js"></script>
     
     <style>
         :root {
@@ -1087,109 +1091,248 @@
             }
         }
 
-        // Real-Time IoT Sensors
-        function readSensors() {
-            fetch('/sensor-status')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('val-temp').innerText = data.temperature.toFixed(1) + "°C";
-                        document.getElementById('val-humidity').innerText = data.humidity.toFixed(1) + "%";
-                        document.getElementById('val-moisture').innerText = data.soil_moisture.toFixed(1) + "%";
-                        document.getElementById('val-ph').innerText = data.ph.toFixed(2);
-                        document.getElementById('val-rainfall').innerText = data.rainfall.toFixed(1) + "mm";
-                        
-                        // Highlight anomalies
-                        const cards = ['temp', 'humidity', 'moisture', 'ph', 'rainfall'];
-                        cards.forEach(card => {
-                            const elem = document.getElementById(`card-${card}`);
-                            if (data.is_anomaly) {
-                                elem.classList.add('anomaly');
-                            } else {
-                                elem.classList.remove('anomaly');
-                            }
-                        });
-                        
-                        const statusDot = document.getElementById('status-dot');
-                        const statusText = document.getElementById('status-text');
-                        if (data.is_anomaly) {
-                            statusDot.style.background = 'var(--danger)';
-                            statusDot.style.boxShadow = '0 0 12px var(--danger)';
-                            statusText.innerText = "Anomaly Alert!";
-                            statusText.style.color = "var(--danger)";
-                        } else {
-                            statusDot.style.background = 'var(--primary)';
-                            statusDot.style.boxShadow = '0 0 12px var(--primary)';
-                            statusText.innerText = "System Live";
-                            statusText.style.color = "var(--text-main)";
-                        }
-                        
-                        // Refresh log table if currently on sensor tab
-                        const activeLogTab = document.querySelector('.log-tab-btn.active');
-                        if (activeLogTab && activeLogTab.innerText === 'sensor_readings') {
-                            activeLogTab.click();
+        // Client-Side Database & ML Log Simulation
+        let onnxSession = null;
+        const CLASSES = ['Healthy', 'Early Blight', 'Late Blight', 'Leaf Mold'];
+
+        async function initOnnx() {
+            try {
+                console.log("Loading client-side ONNX disease model...");
+                onnxSession = await ort.InferenceSession.create('/static/plant_disease_model.onnx');
+                console.log("ONNX model loaded successfully.");
+            } catch (err) {
+                console.error("Failed to load ONNX model:", err);
+            }
+        }
+
+        function initLocalStorageLogs() {
+            const defaultTables = {
+                'sensor_readings': [
+                    { id: 1, timestamp: new Date(Date.now() - 60000).toISOString().replace('T', ' ').substring(0, 19), temperature: 24.5, humidity: 65.0, soil_moisture: 45.0, ph: 6.2, rainfall: 12.0, is_anomaly: 0 }
+                ],
+                'crop_predictions': [
+                    { id: 1, timestamp: new Date(Date.now() - 50000).toISOString().replace('T', ' ').substring(0, 19), N: 50, P: 50, K: 50, ph: 6.5, temperature: 25.0, humidity: 70.0, rainfall: 150.0, top1: 'Jute', top2: 'Banana', top3: 'Coffee' }
+                ],
+                'disease_detections': [
+                    { id: 1, timestamp: new Date(Date.now() - 40000).toISOString().replace('T', ' ').substring(0, 19), filename: 'healthy_leaf.jpg', disease_name: 'Healthy', confidence: 0.95 }
+                ],
+                'yield_predictions': [
+                    { id: 1, timestamp: new Date(Date.now() - 30000).toISOString().replace('T', ' ').substring(0, 19), crop: 'Wheat', area: 12.5, season: 'Rabi', rainfall: 450.0, fertilizer: 1500.0, predicted_yield: 637.71 }
+                ],
+                'fertilizer_predictions': [
+                    { id: 1, timestamp: new Date(Date.now() - 20000).toISOString().replace('T', ' ').substring(0, 19), N: 60.0, P: 15.0, K: 45.0, ph: 6.2, moisture: 35.0, temperature: 24.0, crop: 'Wheat', recommended_fertilizer: 'DAP (Diammonium Phosphate)' }
+                ]
+            };
+            
+            for (const [table, logs] of Object.entries(defaultTables)) {
+                if (!localStorage.getItem(table)) {
+                    localStorage.setItem(table, JSON.stringify(logs));
+                }
+            }
+        }
+
+        function logToLocalStorage(tableName, record) {
+            let logs = JSON.parse(localStorage.getItem(tableName) || '[]');
+            record.id = logs.length > 0 ? Math.max(...logs.map(l => l.id)) + 1 : 1;
+            record.timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+            logs.unshift(record);
+            localStorage.setItem(tableName, JSON.stringify(logs));
+        }
+
+        // Image Preprocessing: Resize & Gaussian Blur equivalent in JavaScript using Canvas
+        function preprocessImage(imgElement) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imgElement, 0, 0, 128, 128);
+            
+            const imgData = ctx.getImageData(0, 0, 128, 128);
+            const data = imgData.data;
+            
+            // Apply 3x3 Gaussian Blur filter kernel
+            const kernel = [
+                [1/16, 2/16, 1/16],
+                [2/16, 4/16, 2/16],
+                [1/16, 2/16, 1/16]
+            ];
+            
+            const width = 128;
+            const height = 128;
+            const FloatArray = new Float32Array(1 * 128 * 128 * 3);
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let rSum = 0, gSum = 0, bSum = 0;
+                    for (let ky = -1; ky <= 1; ky++) {
+                        for (let kx = -1; kx <= 1; kx++) {
+                            const px = Math.min(width - 1, Math.max(0, x + kx));
+                            const py = Math.min(height - 1, Math.max(0, y + ky));
+                            const idx = (py * width + px) * 4;
+                            const weight = kernel[ky + 1][kx + 1];
+                            rSum += data[idx] * weight;
+                            gSum += data[idx + 1] * weight;
+                            bSum += data[idx + 2] * weight;
                         }
                     }
-                })
-                .catch(err => console.error("Error reading sensors:", err));
+                    const outIdx = (y * width + x) * 3;
+                    FloatArray[outIdx] = rSum / 255.0;     // Normalization
+                    FloatArray[outIdx + 1] = gSum / 255.0;
+                    FloatArray[outIdx + 2] = bSum / 255.0;
+                }
+            }
+            return FloatArray;
+        }
+
+        // Real-Time IoT Sensors
+        function readSensors() {
+            const isAnomalyTriggered = Math.random() < 0.1;
+            let temp, hum, moist, ph, rain;
+            
+            if (isAnomalyTriggered) {
+                const anomalyType = ['temp', 'ph', 'moisture', 'rainfall'][Math.floor(Math.random() * 4)];
+                if (anomalyType === 'temp') {
+                    temp = Math.random() * (52 - 45) + 45;
+                    hum = Math.random() * (45 - 30) + 30;
+                    moist = Math.random() * (35 - 20) + 20;
+                    ph = Math.random() * (7 - 6) + 6;
+                    rain = Math.random() * (50 - 0) + 0;
+                } else if (anomalyType === 'ph') {
+                    temp = Math.random() * (30 - 25) + 25;
+                    hum = Math.random() * (80 - 70) + 70;
+                    moist = Math.random() * (70 - 60) + 60;
+                    ph = Math.random() * (4.2 - 3.0) + 3.0;
+                    rain = Math.random() * (100 - 10) + 10;
+                } else if (anomalyType === 'moisture') {
+                    temp = Math.random() * (35 - 28) + 28;
+                    hum = Math.random() * (90 - 80) + 80;
+                    moist = Math.random() * (98 - 92) + 92;
+                    ph = Math.random() * (6.8 - 6.2) + 6.2;
+                    rain = Math.random() * (250 - 150) + 150;
+                } else { // rainfall
+                    temp = Math.random() * (25 - 20) + 20;
+                    hum = Math.random() * (95 - 85) + 85;
+                    moist = Math.random() * (85 - 75) + 75;
+                    ph = Math.random() * (6 - 5.5) + 5.5;
+                    rain = Math.random() * (480 - 420) + 420;
+                }
+            } else {
+                temp = Math.random() * (38 - 22) + 22;
+                hum = Math.random() * (85 - 45) + 45;
+                moist = Math.random() * (75 - 25) + 25;
+                ph = Math.random() * (7.2 - 5.8) + 5.8;
+                rain = Math.random() * (280 - 5) + 5;
+            }
+            
+            // Check anomaly bounds
+            const isAnomaly = temp > 40 || ph < 5 || ph > 8 || moist > 90 || rain > 400;
+            
+            document.getElementById('val-temp').innerText = temp.toFixed(1) + "°C";
+            document.getElementById('val-humidity').innerText = hum.toFixed(1) + "%";
+            document.getElementById('val-moisture').innerText = moist.toFixed(1) + "%";
+            document.getElementById('val-ph').innerText = ph.toFixed(2);
+            document.getElementById('val-rainfall').innerText = rain.toFixed(1) + "mm";
+            
+            // Highlight anomalies
+            const cards = ['temp', 'humidity', 'moisture', 'ph', 'rainfall'];
+            cards.forEach(card => {
+                const elem = document.getElementById(`card-${card}`);
+                if (isAnomaly) {
+                    elem.classList.add('anomaly');
+                } else {
+                    elem.classList.remove('anomaly');
+                }
+            });
+            
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            if (isAnomaly) {
+                statusDot.style.background = 'var(--danger)';
+                statusDot.style.boxShadow = '0 0 12px var(--danger)';
+                statusText.innerText = "Anomaly Alert!";
+                statusText.style.color = "var(--danger)";
+            } else {
+                statusDot.style.background = 'var(--primary)';
+                statusDot.style.boxShadow = '0 0 12px var(--primary)';
+                statusText.innerText = "System Live";
+                statusText.style.color = "var(--text-main)";
+            }
+            
+            // Log to LocalStorage
+            logToLocalStorage('sensor_readings', {
+                temperature: temp,
+                humidity: hum,
+                soil_moisture: moist,
+                ph: ph,
+                rainfall: rain,
+                is_anomaly: isAnomaly ? 1 : 0
+            });
+            
+            // Refresh log table if currently on sensor tab
+            const activeLogTab = document.querySelector('.log-tab-btn.active');
+            if (activeLogTab && activeLogTab.innerText === 'sensor_readings') {
+                loadDbLogs('sensor_readings');
+            }
+            
+            // Update dynamic Chart.js
+            updateSensorChart(temp, moist, rain);
+            fetchAndAverageNutrients();
         }
 
         // Crop Recommendation
         function getRecommendation(e) {
             e.preventDefault();
-            const N = document.getElementById('n-nutrient').value;
-            const P = document.getElementById('p-nutrient').value;
-            const K = document.getElementById('k-nutrient').value;
-            const temp = document.getElementById('temp-val').value;
-            const hum = document.getElementById('humidity-val').value;
-            const ph = document.getElementById('ph-val').value;
-            const rain = document.getElementById('rainfall-val').value;
+            const N = parseFloat(document.getElementById('n-nutrient').value);
+            const P = parseFloat(document.getElementById('p-nutrient').value);
+            const K = parseFloat(document.getElementById('k-nutrient').value);
+            const temp = parseFloat(document.getElementById('temp-val').value);
+            const hum = parseFloat(document.getElementById('humidity-val').value);
+            const ph = parseFloat(document.getElementById('ph-val').value);
+            const rain = parseFloat(document.getElementById('rainfall-val').value);
 
-            fetch('/recommend-crop', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ N, P, K, temperature: temp, humidity: hum, ph, rainfall: rain })
-            })
-            .then(res => res.json())
-            .then(data => {
-                const resultsBox = document.getElementById('rec-results');
-                const podium = document.getElementById('rec-podium');
-                podium.innerHTML = '';
-                
-                if (data.success && data.recommendations) {
-                    resultsBox.style.display = 'block';
-                    data.recommendations.forEach((item, index) => {
-                        const scorePct = (item.probability * 100).toFixed(1) + "%";
-                        podium.innerHTML += `
-                            <div class="podium-item">
-                                <div class="podium-rank">
-                                    <div class="rank-badge rank-${index+1}">${index+1}</div>
-                                    <span class="crop-name">${item.crop}</span>
-                                </div>
-                                <div style="display: flex; align-items: center;">
-                                    <span style="font-weight: 700; color: var(--accent);">${scorePct}</span>
-                                    <div class="crop-prob-bar">
-                                        <div class="crop-prob-fill" style="width: ${item.probability*100}%"></div>
-                                    </div>
-                                </div>
+            const recommendations = recommendCropClient(N, P, K, temp, hum, ph, rain);
+
+            const resultsBox = document.getElementById('rec-results');
+            const podium = document.getElementById('rec-podium');
+            podium.innerHTML = '';
+            
+            resultsBox.style.display = 'block';
+            recommendations.forEach((item, index) => {
+                const scorePct = (item.probability * 100).toFixed(1) + "%";
+                podium.innerHTML += `
+                    <div class="podium-item">
+                        <div class="podium-rank">
+                            <div class="rank-badge rank-${index+1}">${index+1}</div>
+                            <span class="crop-name">${item.crop}</span>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <span style="font-weight: 700; color: var(--accent);">${scorePct}</span>
+                            <div class="crop-prob-bar">
+                                <div class="crop-prob-fill" style="width: ${item.probability*100}%"></div>
                             </div>
-                        `;
-                    });
-                    
-                    // Refresh database logs if active
-                    const activeLogTab = document.querySelector('.log-tab-btn.active');
-                    if (activeLogTab && activeLogTab.innerText === 'crop_predictions') {
-                        activeLogTab.click();
-                    }
-                } else {
-                    alert("Recommendation failed: " + (data.error || "Unknown error"));
-                }
-            })
-            .catch(err => alert("Error communicating with recommendation engine: " + err));
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Log to LocalStorage
+            logToLocalStorage('crop_predictions', {
+                N, P, K, ph, temperature: temp, humidity: hum, rainfall: rain,
+                top1: recommendations[0].crop,
+                top2: recommendations[1].crop,
+                top3: recommendations[2].crop
+            });
+            
+            // Refresh database logs if active
+            const activeLogTab = document.querySelector('.log-tab-btn.active');
+            if (activeLogTab && activeLogTab.innerText === 'crop_predictions') {
+                loadDbLogs('crop_predictions');
+            }
+            fetchAndAverageNutrients();
         }
 
         // Disease Detection
-        function detectDisease(e) {
+        async function detectDisease(e) {
             e.preventDefault();
             const file = fileInput.files[0];
             if (!file) {
@@ -1197,41 +1340,57 @@
                 return;
             }
 
+            if (!onnxSession) {
+                alert("ONNX Inference engine is still loading. Please try again in a moment.");
+                return;
+            }
+
             const diagnoseBtn = document.getElementById('diagnose-btn');
             diagnoseBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
             diagnoseBtn.disabled = true;
 
-            const formData = new FormData();
-            formData.append('file', file);
-
-            fetch('/predict-disease', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                diagnoseBtn.innerHTML = '<i class="fa-solid fa-microscope"></i> Diagnose Plant Health';
-                diagnoseBtn.disabled = false;
-
-                const resultsBox = document.getElementById('disease-results');
-                const report = document.getElementById('disease-report');
-                
-                if (data.success) {
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = async () => {
+                try {
+                    // Preprocess image to Float32 input tensor
+                    const FloatArray = preprocessImage(img);
+                    
+                    const inputTensor = new ort.Tensor('float32', FloatArray, [1, 128, 128, 3]);
+                    const feeds = { 'args_0:0': inputTensor };
+                    const results = await onnxSession.run(feeds);
+                    const outputTensor = results['Identity:0'];
+                    const probs = outputTensor.data;
+                    
+                    let maxIdx = 0;
+                    let maxProb = probs[0];
+                    for (let i = 1; i < probs.length; i++) {
+                        if (probs[i] > maxProb) {
+                            maxProb = probs[i];
+                            maxIdx = i;
+                        }
+                    }
+                    
+                    const diseaseName = CLASSES[maxIdx];
+                    const confidence = maxProb;
+                    const resultsBox = document.getElementById('disease-results');
+                    const report = document.getElementById('disease-report');
+                    
                     resultsBox.style.display = 'block';
-                    const isHealthy = data.disease.toLowerCase() === 'healthy';
-                    const confidencePct = (data.confidence * 100).toFixed(1) + "%";
+                    const isHealthy = diseaseName.toLowerCase() === 'healthy';
+                    const confidencePct = (confidence * 100).toFixed(1) + "%";
                     
                     let recommendations = "";
                     if (isHealthy) {
                         recommendations = "Leaf appears healthy. Continue normal irrigation and regular nutrient schedules.";
-                    } else if (data.disease.includes('Blight')) {
+                    } else if (diseaseName.includes('Blight')) {
                         recommendations = "Fungicidal treatment recommended. Reduce overhead irrigation to avoid spreading spores on foliage.";
-                    } else if (data.disease.includes('Mold')) {
+                    } else if (diseaseName.includes('Mold')) {
                         recommendations = "Improve greenhouse ventilation, reduce relative humidity levels below 85%, and apply systemic copper sprays.";
                     }
                     
                     report.innerHTML = `
-                        <div class="disease-badge ${isHealthy ? 'healthy' : ''}">${data.disease.toUpperCase()}</div>
+                        <div class="disease-badge ${isHealthy ? 'healthy' : ''}">${diseaseName.toUpperCase()}</div>
                         <div style="margin-bottom: 15px;">
                             <span style="color: var(--text-muted);">Confidence Score:</span>
                             <span style="font-weight: 700; color: #ffffff; margin-left: 8px;">${confidencePct}</span>
@@ -1242,20 +1401,30 @@
                         </div>
                     `;
                     
+                    // Log to LocalStorage
+                    logToLocalStorage('disease_detections', {
+                        filename: file.name,
+                        disease_name: diseaseName,
+                        confidence: confidence
+                    });
+                    
                     // Refresh database logs if active
                     const activeLogTab = document.querySelector('.log-tab-btn.active');
                     if (activeLogTab && activeLogTab.innerText === 'disease_detections') {
-                        activeLogTab.click();
+                        loadDbLogs('disease_detections');
                     }
-                } else {
-                    alert("Diagnosis failed: " + (data.error || "Unknown error"));
+                } catch (err) {
+                    alert("ONNX Inference error: " + err);
+                } finally {
+                    diagnoseBtn.innerHTML = '<i class="fa-solid fa-microscope"></i> Diagnose Plant Health';
+                    diagnoseBtn.disabled = false;
                 }
-            })
-            .catch(err => {
+            };
+            img.onerror = () => {
                 diagnoseBtn.innerHTML = '<i class="fa-solid fa-microscope"></i> Diagnose Plant Health';
                 diagnoseBtn.disabled = false;
-                alert("Error during diagnosis: " + err);
-            });
+                alert("Failed to load uploaded image for analysis.");
+            };
         }
 
         // Crop Yield prediction
@@ -1263,124 +1432,105 @@
             e.preventDefault();
             const crop = document.getElementById('yield-crop').value;
             const season = document.getElementById('yield-season').value;
-            const area = document.getElementById('yield-area').value;
-            const rainfall = document.getElementById('yield-rainfall').value;
-            const fertilizer = document.getElementById('yield-fertilizer').value;
+            const area = parseFloat(document.getElementById('yield-area').value);
+            const rainfall = parseFloat(document.getElementById('yield-rainfall').value);
+            const fertilizer = parseFloat(document.getElementById('yield-fertilizer').value);
 
-            fetch('/predict-yield', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ crop, season, area, rainfall, fertilizer })
-            })
-            .then(res => res.json())
-            .then(data => {
-                const resultsBox = document.getElementById('yield-results');
-                if (data.success) {
-                    resultsBox.style.display = 'block';
-                    document.getElementById('lbl-yield-rate').innerText = data.predicted_yield.toFixed(2) + " t/ha";
-                    document.getElementById('lbl-total-prod').innerText = data.total_production.toFixed(2) + " tonnes";
-                    
-                    // Refresh database logs if active
-                    const activeLogTab = document.querySelector('.log-tab-btn.active');
-                    if (activeLogTab && activeLogTab.innerText === 'yield_predictions') {
-                        activeLogTab.click();
-                    }
-                } else {
-                    alert("Yield optimization failed: " + (data.error || "Unknown error"));
-                }
-            })
-            .catch(err => alert("Error communicating with yield prediction engine: " + err));
+            const res = predictYieldClient(crop, season, area, rainfall, fertilizer);
+
+            const resultsBox = document.getElementById('yield-results');
+            resultsBox.style.display = 'block';
+            document.getElementById('lbl-yield-rate').innerText = res.predicted_yield.toFixed(2) + " t/ha";
+            document.getElementById('lbl-total-prod').innerText = res.total_production.toFixed(2) + " tonnes";
+            
+            // Log to LocalStorage
+            logToLocalStorage('yield_predictions', {
+                crop, area, season, rainfall, fertilizer, predicted_yield: res.predicted_yield
+            });
+            
+            // Refresh database logs if active
+            const activeLogTab = document.querySelector('.log-tab-btn.active');
+            if (activeLogTab && activeLogTab.innerText === 'yield_predictions') {
+                loadDbLogs('yield_predictions');
+            }
         }
 
-        // SQL Logs fetching
+        // SQLite LocalStorage Logs tables rendering
         function loadDbLogs(tableName, tabElement) {
             if (tabElement) {
                 document.querySelectorAll('.log-tab-btn').forEach(btn => btn.classList.remove('active'));
                 tabElement.classList.add('active');
             }
             
-            fetch(`/logs/${tableName}`)
-                .then(res => res.json())
-                .then(data => {
-                    const thead = document.getElementById('logs-thead');
-                    const tbody = document.getElementById('logs-tbody');
-                    thead.innerHTML = '';
-                    tbody.innerHTML = '';
-                    
-                    if (data.success && data.logs.length > 0) {
-                        // Dynamically resolve columns from first record keys
-                        const columns = Object.keys(data.logs[0]);
-                        columns.forEach(col => {
-                            thead.innerHTML += `<th>${col}</th>`;
-                        });
-                        
-                        data.logs.forEach(row => {
-                            let trHtml = '<tr>';
-                            columns.forEach(col => {
-                                let val = row[col];
-                                if (typeof val === 'number') {
-                                    // format floats
-                                    val = val % 1 === 0 ? val : val.toFixed(2);
-                                }
-                                if (col === 'is_anomaly') {
-                                    val = val === 1 ? '<span style="color: var(--danger); font-weight:700;">YES</span>' : '<span style="color: var(--primary);">NO</span>';
-                                }
-                                trHtml += `<td>${val}</td>`;
-                            });
-                            trHtml += '</tr>';
-                            tbody.innerHTML += trHtml;
-                        });
-                    } else {
-                        thead.innerHTML = '<th>Status</th>';
-                        tbody.innerHTML = '<tr><td>No records logged in this table yet. Triggers must occur to record predictions.</td></tr>';
-                    }
-                })
-                .catch(err => console.error("Error loading DB logs:", err));
+            const logs = JSON.parse(localStorage.getItem(tableName) || '[]');
+            const thead = document.getElementById('logs-thead');
+            const tbody = document.getElementById('logs-tbody');
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+            
+            if (logs.length > 0) {
+                const columns = Object.keys(logs[0]);
+                columns.forEach(col => {
+                    thead.innerHTML += `<th>${col}</th>`;
+                });
+                
+                logs.slice(0, 10).forEach(row => {
+                    let trHtml = '<tr>';
+                    columns.forEach(col => {
+                        let val = row[col];
+                        if (typeof val === 'number') {
+                            val = val % 1 === 0 ? val : val.toFixed(2);
+                        }
+                        if (col === 'is_anomaly') {
+                            val = val === 1 ? '<span style="color: var(--danger); font-weight:700;">YES</span>' : '<span style="color: var(--primary);">NO</span>';
+                        }
+                        trHtml += `<td>${val}</td>`;
+                    });
+                    trHtml += '</tr>';
+                    tbody.innerHTML += trHtml;
+                });
+            } else {
+                thead.innerHTML = '<th>Status</th>';
+                tbody.innerHTML = '<tr><td>No records logged in this table yet. Triggers must occur to record predictions.</td></tr>';
+            }
         }
 
         // Fertilizer Recommendation Form
         function getFertilizer(e) {
             e.preventDefault();
-            const N = document.getElementById('fert-n').value;
-            const P = document.getElementById('fert-p').value;
-            const K = document.getElementById('fert-k').value;
-            const moisture = document.getElementById('fert-moisture').value;
-            const temp = document.getElementById('fert-temp').value;
-            const ph = document.getElementById('fert-ph').value;
+            const N = parseFloat(document.getElementById('fert-n').value);
+            const P = parseFloat(document.getElementById('fert-p').value);
+            const K = parseFloat(document.getElementById('fert-k').value);
+            const moisture = parseFloat(document.getElementById('fert-moisture').value);
+            const temp = parseFloat(document.getElementById('fert-temp').value);
+            const ph = parseFloat(document.getElementById('fert-ph').value);
             const crop = document.getElementById('fert-crop').value;
 
-            fetch('/recommend-fertilizer', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ N, P, K, moisture, temperature: temp, ph, crop })
-            })
-            .then(res => res.json())
-            .then(data => {
-                const resultsBox = document.getElementById('fert-results');
-                const fertLbl = document.getElementById('lbl-fert-rec');
-                if (data.success) {
-                    resultsBox.style.display = 'block';
-                    fertLbl.innerText = data.fertilizer;
-                    
-                    // Highlight fertilizer name
-                    if (data.fertilizer.includes('Lime') || data.fertilizer.includes('Gypsum')) {
-                        fertLbl.style.color = '#a855f7';
-                        fertLbl.style.borderColor = 'rgba(168, 85, 247, 0.3)';
-                    } else {
-                        fertLbl.style.color = 'var(--primary)';
-                        fertLbl.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-                    }
-                    
-                    // Refresh database logs if active
-                    const activeLogTab = document.querySelector('.log-tab-btn.active');
-                    if (activeLogTab && activeLogTab.innerText === 'fertilizer_predictions') {
-                        activeLogTab.click();
-                    }
-                } else {
-                    alert("Fertilizer recommendation failed: " + (data.error || "Unknown error"));
-                }
-            })
-            .catch(err => alert("Error communicating with fertilizer engine: " + err));
+            const fertilizer = recommendFertilizerClient(N, P, K, ph, moisture, temp, crop);
+
+            const resultsBox = document.getElementById('fert-results');
+            const fertLbl = document.getElementById('lbl-fert-rec');
+            resultsBox.style.display = 'block';
+            fertLbl.innerText = fertilizer;
+            
+            if (fertilizer.includes('Lime') || fertilizer.includes('Gypsum')) {
+                fertLbl.style.color = '#a855f7';
+                fertLbl.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+            } else {
+                fertLbl.style.color = 'var(--primary)';
+                fertLbl.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            }
+            
+            // Log to LocalStorage
+            logToLocalStorage('fertilizer_predictions', {
+                N, P, K, ph, moisture, temperature: temp, crop, recommended_fertilizer: fertilizer
+            });
+            
+            // Refresh database logs if active
+            const activeLogTab = document.querySelector('.log-tab-btn.active');
+            if (activeLogTab && activeLogTab.innerText === 'fertilizer_predictions') {
+                loadDbLogs('fertilizer_predictions');
+            }
         }
 
         // Chart.js Variables
@@ -1498,9 +1648,7 @@
 
         function updateSensorChart(temp, moisture, rainfall) {
             if (!sensorChart) return;
-            
             const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            
             sensorTimeLabels.push(now);
             tempHistory.push(temp);
             moistureHistory.push(moisture);
@@ -1512,52 +1660,34 @@
                 moistureHistory.shift();
                 rainfallHistory.shift();
             }
-            
             sensorChart.update();
         }
 
         function fetchAndAverageNutrients() {
-            fetch('/logs/crop_predictions')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success && data.logs.length > 0) {
-                        let sumN = 0, sumP = 0, sumK = 0;
-                        data.logs.forEach(log => {
-                            sumN += log.N;
-                            sumP += log.P;
-                            sumK += log.K;
-                        });
-                        const avgN = sumN / data.logs.length;
-                        const avgP = sumP / data.logs.length;
-                        const avgK = sumK / data.logs.length;
-                        
-                        if (nutrientChart) {
-                            nutrientChart.data.datasets[0].data = [avgN, avgP, avgK];
-                            nutrientChart.update();
-                        }
-                    }
-                })
-                .catch(err => console.error("Error drawing dynamic bar chart:", err));
-        }
-
-        // Hook updateSensorChart inside readSensors
-        const originalReadSensors = readSensors;
-        readSensors = function() {
-            fetch('/sensor-status')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        // Update dynamic Chart.js
-                        updateSensorChart(data.temperature, data.soil_moisture, data.rainfall);
-                    }
+            const logs = JSON.parse(localStorage.getItem('crop_predictions') || '[]');
+            if (logs.length > 0) {
+                let sumN = 0, sumP = 0, sumK = 0;
+                logs.forEach(log => {
+                    sumN += log.N;
+                    sumP += log.P;
+                    sumK += log.K;
                 });
-            originalReadSensors();
-            fetchAndAverageNutrients();
+                const avgN = sumN / logs.length;
+                const avgP = sumP / logs.length;
+                const avgK = sumK / logs.length;
+                
+                if (nutrientChart) {
+                    nutrientChart.data.datasets[0].data = [avgN, avgP, avgK];
+                    nutrientChart.update();
+                }
+            }
         }
 
         // Initialization
         window.onload = function() {
             initChartJs();
+            initLocalStorageLogs();
+            initOnnx();
             
             // Read initial sensors
             readSensors();
